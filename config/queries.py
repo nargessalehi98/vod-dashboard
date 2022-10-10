@@ -1,5 +1,5 @@
 import bson
-from typing import Tuple
+from typing import Tuple, overload
 from config.utils import to_object_id, query_logger
 from config.settings import db  # # # Do Not Delete This Import
 from bson import ObjectId  # # # Do Not Delete This Import
@@ -87,6 +87,14 @@ class Query:
 
     @classmethod
     @query_logger
+    def update_variable(cls, filter, update):
+        """ example: \nUser.update_one({'_id': _id}, {'name':'ali'}) """
+        if '_id' in filter:
+            filter['_id'] = to_object_id(filter['_id'])
+        return eval(f'db.{cls.__name__}.update_one({filter}, {update})')
+
+    @classmethod
+    @query_logger
     def update_one(cls, filter, **kwargs) -> dict:
         """ example: \nUser.update_one({'_id': _id}, name='ali') """
         if '_id' in filter:
@@ -124,83 +132,29 @@ class Query:
 
     @classmethod
     @query_logger
-    def aggregate(cls, content_ids, provider_id, group_field, sum_field, start_time, end_time, skip, limit, item_field1,
-                  item_field2):
-        time, provider, content = {}, {}, {}
-        if start_time and end_time:
-            time = {'date_hourly': {'$gt': f'{start_time}', '$lt': f'{end_time}'}}
-        if provider_id:
-            provider = {'provider_id': {'$eq': f'{provider_id}'}}
-        if content_ids:
-            content = {'content_id': {'$in': content_ids}}
-        match = {'$match': {'$and': [time, provider, content]}}
-        if sum is not None:
-            group = {'$group': {'_id': {f'{group_field}': f'${group_field}'},
-                                f'{sum_field}': {'$sum': {'$multiply': ['$traffic_factor', f'${sum_field}']}}}}
-        else:
-            group = {'$group': {'_id': {f'{group_field}': f'${group_field}'},
-                                'data': {'$push': {f'{item_field1}': f'${item_field1}',
-                                                   f'{item_field2}': f'${item_field2}'}}}}
-
-        sort = {'$sort': {f'{sum_field}': -1}}
-        skip = {'$skip': skip}
-        limit = {'$limit': limit}
-        pipeline = [match, group, sort, skip, limit]
-        print(pipeline)
-        return eval(f'db.{cls.__name__}.aggregate(pipeline)')
-
-    @classmethod
-    @query_logger
-    def aggregate_set(cls, content_ids, provider_id, group_field, sum_field, start_time, end_time, skip, limit,
-                      item_field1,
-                      item_field2):
-        time, provider, content = {}, {}, {}
-        if start_time and end_time:
-            time = {'date_hourly': {'$gt': f'{start_time}', '$lt': f'{end_time}'}}
-        if provider_id:
-            provider = {'provider_id': {'$eq': f'{provider_id}'}}
-        if content_ids:
-            content = {'content_id': {'$in': content_ids}}
-        match = {'$match': {'$and': [time, provider, content]}}
-        if sum is None:
-            group = {'$group': {'_id': {f'{group_field}': f'${group_field}'},
-                                f'{sum_field}': {'$sum': {'$multiply': ['$traffic_factor', f'${sum_field}']}}}}
-        else:
-            group = {'$group': {'_id': {f'{group_field}': f'${group_field}'},
-                                f'{item_field1}': {'$push': f'${item_field1}'},
-                                f'{item_field2}': {'$push': f'${item_field2}'}}}
-
-        sort = {'$sort': {f'{sum_field}': -1}}
-        skip = {'$skip': skip}
-        limit = {'$limit': limit}
-        pipeline = [match, group, sort, skip, limit]
-        print(pipeline)
-        return eval(f'db.{cls.__name__}.aggregate(pipeline)')
-
-    @classmethod
-    @query_logger
-    def aggregate_two_group(cls, content_ids, provider_id, group_field, sum_field, start_time, end_time, skip, limit):
-        time, provider, content = {}, {}, {}
-        if start_time and end_time:
-            time = {'date_hourly': {'$gt': f'{start_time}', '$lt': f'{end_time}'}}
-        if provider_id:
-            provider = {'provider_id': {'$eq': f'{provider_id}'}}
-        if content_ids:
-            content = {'content_id': {'$in': content_ids}}
-
-        match = {'$match': {'$and': [time, provider, content]}}
-
-        group1 = {'$group': {'_id': {'date_hourly': '$date_hourly', 'isp_name': '$isp_name'},
-                             'data': {
-                                 '$push': {
-                                     'accessed_bytes': {'$sum': {'$multiply': ['$traffic_factor', '$accessed_bytes']}},
-                                     'isp_name': '$isp_name'}}}}
-
-        group2 = {'$group': {'_id': {'date_hourly': '$_id.date_hourly', 'isp_name': '$_id.isp_name'},
-                             'data': {'$push': {'accessed_bytes': {'$sum': '$data.accessed_bytes'}}}}}
-
-        sort = {'$sort': {f'{group_field}': 1}}
-        skip = {'$skip': skip}
-        limit = {'$limit': limit}
-        pipeline = [match, group1, group2, sort, skip, limit]
-        return eval(f'db.{cls.__name__}.aggregate(pipeline)')
+    def aggregate(cls, match_list, group_list, project, pre_sort, sort, skip, limit):
+        """
+        example:
+            User.aggregate( [X, Y, Z ,...], date ,20, 10,[group1 , group2 ,...] )
+        * it will increment score by 1
+        """
+        pipline = []
+        if match_list:
+            match_list = {'$match': {'$and': match_list}}
+            if pre_sort:
+                pre_sort = {'$sort': {f'{pre_sort}': -1}}
+                pipline.append(pre_sort)
+            pipline = [match_list, *group_list]
+        if project:
+            project = {'$project': project}
+            pipline.append(project)
+        if sort:
+            sort = {'$sort': {f'{sort}': -1}}
+            pipline.append(sort)
+        if skip:
+            skip = {'$skip': skip}
+            pipline.append(skip)
+        if limit:
+            limit = {'$limit': limit}
+            pipline.append(limit)
+        return eval(f'db.{cls.__name__}.aggregate(pipline)')

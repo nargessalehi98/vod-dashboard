@@ -11,8 +11,8 @@ class InputSerializer(BaseModel):
 
 
 class PaginationSerializer(BaseModel):
-    skip: Optional[int] = 0
-    limit: Optional[int] = 10
+    skip: Optional[int]
+    limit: Optional[int]
 
     @validator('limit')
     def limit_is_valid(cls, limit):

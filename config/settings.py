@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 
 Author Narges Salehi @Rubika 2022
 """
+import os
 from datetime import timedelta
 from pathlib import Path
 from dotenv import dotenv_values
@@ -37,15 +38,52 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'corsheaders',
     'django.contrib.auth',
     'django.contrib.contenttypes',
 ]
 
 MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
     'config.middlewares.ValidateInputMiddleware',
 ]
 
-client = MongoClient(host=DB_HOST, username=DB_USER, password=DB_PASS)
+LOGS_DIR = BASE_DIR / 'logs'
+if not os.path.exists(LOGS_DIR):
+    os.makedirs(LOGS_DIR)
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '|{asctime}| {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'formatter': 'verbose',
+            'filename': LOGS_DIR / 'dashboard.log',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'maxBytes': 1024 * 1024 * 100,  # 100 MB,
+            'backupCount': 3
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose'
+        },
+    },
+    'loggers': {
+        'root': {
+            'level': 'DEBUG',
+            'handlers': ['console', 'file'],
+            'propagate': True,
+        },
+    },
+}
+
+client = MongoClient(port=27017, host=DB_HOST, username=DB_USER, password=DB_PASS)
 db = client[DB_NAME]
 
 JWT_LIFETIME = timedelta(minutes=30)

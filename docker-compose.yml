@@ -1,0 +1,17 @@
+version: '3.4'
+
+services:
+  db:
+    image: mongo:latest
+    ports:
+      - 27018:27017
+
+
+  vod:
+    image: vod:v2
+    volumes:
+      - .:/code
+    ports:
+      - 8000:8000
+    depends_on:
+      - db

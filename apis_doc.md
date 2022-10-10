@@ -302,3 +302,87 @@ Output: OK
 Status code: 200 Ok 
 Access: ViewProvider
 ```
+
+### Method:  addSeries
+
+```commandline
+Input: Series object
+Output: OK
+Status code: 200 Ok 
+Access: - 
+```
+### Object: Series
+* title: str
+* summery: str
+* language: Literal['Persian', 'English']
+* genre: List[str]
+* age: Literal['Adults', 'Children', 'Both']
+* director_id: str
+* producer_id: str
+* actors_id: list
+* IMDB_link: Optional[str]
+* tags: List[str]
+* admin_id: str
+* provider_id: Optional[str]
+
+
+### Method:  uploadPicture
+
+```commandline
+Input: Picture data*
+Output: OK
+Status code: 200 Ok 
+Access: - 
+```
+### data: Picture
+* source_id: str
+* type: Literal['Avatar']
+* extension: Literal['JPEG', 'JPG', 'PNG']
+* size: int
+* name: str
+
+### Method:  uploadContent
+
+```commandline
+Input: Content data*
+Output: OK
+Status code: 200 Ok 
+Access: - 
+```
+### data: Content
+#### series only
+* series_id: Optional[str]
+* season: Optional[int]
+* episode: Optional[int]
+#### movies only
+* actors_id: Optional[list]
+#### both
+* title: str
+* summery: str
+* language: Optional[str]
+* genre: Optional[List[str]]
+* age: Optional[Literal['Adults', 'Children', 'Both']]
+* director_id: Optional[str]
+* producer_id: Optional[str]
+* persons_id: Optional[List[str]]
+* IMDB_link: Optional[str]
+* tags: Optional[List[str]]
+* publish_datetime: Optional[datetime] = datetime_now()
+* admin_id: str
+* provider_id: Optional[str]
+* type: Literal['Movie', 'SeriesEpisode']
+
+### Method:  uploadPicture
+
+```commandline
+Input: Picture data*
+Output: OK
+Status code: 200 Ok 
+Access: - 
+```
+### data: Picture
+* source_id: str
+* type: Literal['Avatar']
+* extension: Literal['JPEG', 'JPG', 'PNG']
+* size: int
+* name: str

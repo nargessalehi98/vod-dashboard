@@ -4,29 +4,36 @@ from rest_framework import status
 from pydantic import ValidationError
 from rest_framework.response import Response
 
+from config.logger import log_error
 from config.settings import SECRET_KEY, JWT_LIFETIME
 from config.utils import datetime_now
-import dashboard.models
+import config.models
 
 
 def authentication(request):
     try:
         payload = jwt.decode(request.api_auth, SECRET_KEY, algorithms='HS256')
-        admin_obj = dashboard.models.Admin.get_one(_id=ObjectId(payload['admin_id']))
+        admin_obj = config.models.Admin.get_one(_id=ObjectId(payload['admin_id']))
         if not admin_obj:
+            log_error('admin dose not exist', request=request)
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         if admin_obj.last_access_time < datetime_now():
+            log_error('token is expired', request=request)
             return Response(status=status.HTTP_401_UNAUTHORIZED)
+
         new_last_access_time = datetime_now() + JWT_LIFETIME
-        dashboard.models.Admin.update_one({'_id': admin_obj._id}, last_access_time=new_last_access_time)
+        config.models.Admin.update_one({'_id': admin_obj._id}, last_access_time=new_last_access_time)
 
     except JWTError as e:
+        log_error(f'token is invalid: {e}', request=request)
         return Response(status=status.HTTP_401_UNAUTHORIZED)
+
     return payload['admin_id']
 
 
 def permission(request, perm):
-    admin = dashboard.models.Admin.get_one(_id=request.user_id)
+    admin = config.models.Admin.get_one(_id=request.user_id)
     for access_group in admin.access_group:
         for access in access_group['accesses']:
             if perm == access:
@@ -48,8 +55,11 @@ def validate_input(auth=False, perm=None):
             if len(list(func.__annotations__.values())) != 0:
                 serializer = list(func.__annotations__.values())[0]
                 try:
+                    if hasattr(request, 'user_id'):
+                        request.api_data['admin_id'] = request.user_id
                     obj = serializer(**request.api_data)
-                except ValidationError:
+                except ValidationError as validation_error:
+                    log_error({'.'.join(e['loc']): e['msg'] for e in validation_error.errors()}, request=request)
                     return Response(data={'detail': 'invalid body'}, status=status.HTTP_400_BAD_REQUEST)
                 kwargs['obj'] = obj
             return func(request, *args, **kwargs)
